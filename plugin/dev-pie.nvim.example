@@ -1,0 +1,19 @@
+return {
+	"vuongpd95/pie.nvim",
+	dir = "/home/vuongpham/Desktop/pie.nvim",
+	lazy = false,
+	dev = true,
+	dependencies = {
+		"arismoko/buddy.nvim",
+	},
+	opts = {
+		sessions = {
+			{
+				name = "pie",
+				dir = "~/Desktop/pie.nvim",
+				work_dir = "~/Desktop",
+				harness = "opencode",
+			},
+		},
+	},
+}
