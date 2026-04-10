@@ -1,4 +1,4 @@
-local OpencodeClient = require("pie.opencode")
+local PiClient = require("pie.pi")
 local PieSession = {}
 PieSession.__index = PieSession
 
@@ -113,7 +113,7 @@ function PieSession:new(session_config)
 	local self = setmetatable({}, PieSession)
 
 	self.name = session_config.name
-	self.harness = session_config.harness or "opencode"
+	self.harness = session_config.harness or "pi"
 	self.task_port = self:randomize_port(1024, 65535)
 	self.work_dir = vim.fn.fnamemodify(session_config.work_dir, ":p")
 	self.commander = session_config.commander
@@ -138,6 +138,14 @@ function PieSession:new(session_config)
 
 	if self:is_commander() then
 		self.dir = vim.fn.fnamemodify(session_config.dir, ":p")
+	end
+
+	if self:is_commander() and self.harness == "opencode" then
+		self.harness_port = self:randomize_port(1024, 65535, { self.task_port })
+		self.harness_client = self:create_harness_client(self.harness_port)
+	end
+
+	if self.harness == "pi" then
 		self.harness_port = self:randomize_port(1024, 65535, { self.task_port })
 		self.harness_client = self:create_harness_client(self.harness_port)
 	end
@@ -161,10 +169,14 @@ end
 
 function PieSession:create_harness_client(port)
 	if self.harness == "opencode" then
-		return OpencodeClient:new(port)
+		error(self.harness .. " is not supported due to its concurrency problem. Use `pi` instead.")
 	end
 
-	error(self.harness .. " is not supported. Use `opencode` instead.")
+	if self.harness == "pi" then
+		return PiClient:new(port)
+	end
+
+	error("Invalid harness. Use `pi`")
 end
 
 function PieSession:get_harness_tool_names()
@@ -181,7 +193,7 @@ function PieSession:get_harness_tool_names()
 end
 
 function PieSession:get_harness_port()
-	if self:is_commander() then
+	if self:is_commander() or self.harness == "pi" then
 		return self.harness_port
 	end
 
@@ -193,6 +205,22 @@ function PieSession:get_harness_port()
 end
 
 function PieSession:ensure_harness_session(on_ready)
+	-- The case in which iit's not necessary to init the coding agent server
+	if self:get_harness_client():open_serve_cmd() == nil then
+		if not self.id then
+			self.id = self:get_harness_client():find_or_create_session({
+				id = self.id,
+				title = self:get_harness_client():session_title(self.name),
+				work_dir = self:get_work_dir(),
+			}).id
+		end
+
+		vim.notify(self.id)
+
+		on_ready()
+		return
+	end
+
 	-- id & job
 	-- ~id & job
 	-- id & ~job
@@ -206,6 +234,7 @@ function PieSession:ensure_harness_session(on_ready)
 		self.id = self:get_harness_client():find_or_create_session({
 			id = self.id,
 			title = self:get_harness_client():session_title(self.name),
+			work_dir = self:get_work_dir(),
 		}).id
 
 		on_ready()
@@ -251,6 +280,7 @@ function PieSession:ensure_harness_session(on_ready)
 				self.id = self:get_harness_client():find_or_create_session({
 					id = self.id,
 					title = self:get_harness_client():session_title(self.name),
+					work_dir = self:get_work_dir(),
 				}).id
 			end
 
@@ -260,36 +290,36 @@ function PieSession:ensure_harness_session(on_ready)
 end
 
 function PieSession:get_harness_client()
-	if self:is_worker_session() then
-		return self.commander_session.harness_client
+	if self.harness == "pi" or self:is_commander() then
+		return self.harness_client
 	end
 
-	if self.is_commander(self) then
-		return self.harness_client
+	if self:is_worker_session() then
+		return self.commander_session.harness_client
 	end
 
 	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
 end
 
 function PieSession:get_harness_bootstrap_job()
-	if self:is_worker_session() then
-		return self.commander_session.harness_bootstrap_job
+	if self.harness == "pi" or self.is_commander(self) then
+		return self.harness_bootstrap_job
 	end
 
-	if self.is_commander(self) then
-		return self.harness_bootstrap_job
+	if self:is_worker_session() then
+		return self.commander_session.harness_bootstrap_job
 	end
 
 	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
 end
 
 function PieSession:set_harness_bootstrap_job(v)
-	if self:is_worker_session() then
-		self.commander_session.harness_bootstrap_job = v
+	if self.harness == "pi" and self:is_commander() then
+		self.harness_bootstrap_job = v
 	end
 
-	if self:is_commander() then
-		self.harness_bootstrap_job = v
+	if self:is_worker_session() then
+		self.commander_session.harness_bootstrap_job = v
 	end
 
 	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
@@ -487,6 +517,9 @@ function PieSession:init_harness()
 			"Let me know that if I want the team mode, the commander working dir should be a git repository.",
 		}, "\n")
 	end
+
+	vim.notify("harness client = " .. vim.inspect(self:get_harness_client()))
+	vim.notify("id = " .. vim.inspect(self.id))
 
 	self:get_harness_client():prompt_async(self.id, {
 		parts = {
