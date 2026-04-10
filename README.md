@@ -241,4 +241,4 @@ Issues and pull requests are welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTI
 
 ## License
 
-GPL-3.0. See [`LICENSE.md`](LICENSE.md).
+GPL-2.0. See [`LICENSE.md`](LICENSE.md).
