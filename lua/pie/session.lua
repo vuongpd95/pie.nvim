@@ -205,7 +205,7 @@ function PieSession:ensure_harness_session(on_ready)
 	if not self.id and self:get_harness_bootstrap_job() then
 		self.id = self:get_harness_client():find_or_create_session({
 			id = self.id,
-			title = self.name .. " PORT = " .. self:get_harness_port(),
+			title = self:get_harness_client():session_title(self.name),
 		}).id
 
 		on_ready()
@@ -250,7 +250,7 @@ function PieSession:ensure_harness_session(on_ready)
 			if not self.id then
 				self.id = self:get_harness_client():find_or_create_session({
 					id = self.id,
-					title = self.name .. " PORT = " .. self:get_harness_port(),
+					title = self:get_harness_client():session_title(self.name),
 				}).id
 			end
 

@@ -102,4 +102,8 @@ function OpencodeClient:attach_tui_cmd(id, dir)
 	return "opencode attach http://127.0.0.1:" .. self.port .. " -s " .. id .. " --dir " .. dir
 end
 
+function OpencodeClient:session_title(name)
+	return name .. " PORT = " .. self.port
+end
+
 return OpencodeClient
