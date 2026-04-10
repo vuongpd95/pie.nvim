@@ -426,6 +426,10 @@ function PieSession:teardown()
 		self.harness_bootstrap_job = nil
 	end
 
+	if self.harness == "pi" then
+		vim.fn.delete(self.id)
+	end
+
 	if self:is_worker_session() then
 		local commander_dir = self.commander_session:get_dir()
 		local env = self:get_env()

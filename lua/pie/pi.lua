@@ -19,10 +19,10 @@ function PiClient:find_session(id)
 	return id
 end
 
-function PiClient:prompt_sync(id, payload)
+function PiClient:prompt_async(id, payload)
 	local text = payload.parts[1].text
 	local cmd = string.format('pi --session %s --mode json "%s"', id, text)
-	return vim.fn.system(cmd)
+	vim.fn.jobstart(cmd)
 end
 
 function PiClient:is_ready()
@@ -42,4 +42,3 @@ function PiClient:attach_tui_cmd(id, dir)
 end
 
 return PiClient
-
