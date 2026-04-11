@@ -133,7 +133,10 @@ function PieSession:new(session_config)
 		self.dir = vim.fn.fnamemodify(session_config.dir, ":p")
 	end
 
-	self.harness_port = self:randomize_port(1024, 65535, { self.task_port })
+	self.harness_port = self:randomize_port(1024, 65535, {
+		self.task_port,
+		7234, -- this is the buddy.nvim MCP server port
+	})
 	self.harness_client = self:create_harness_client(self.harness_port)
 
 	return self

@@ -125,6 +125,19 @@ return {
 }
 ```
 
+And finally, configure `opencode`, edit `~/.config/opencode/opencode.json` to add this key
+
+```json
+{
+  "mcp": {
+    "pie": {
+      "type": "remote",
+      "url": "http://127.0.0.1:7234/sse"
+    }
+  }
+}
+```
+
 ## Usage
 
 Switch to a configured session:
