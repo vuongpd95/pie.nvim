@@ -1,4 +1,4 @@
-local PiClient = require("pie.pi")
+local OpenCodeClient = require("pie.opencode")
 local PieSession = {}
 PieSession.__index = PieSession
 
@@ -113,7 +113,7 @@ function PieSession:new(session_config)
 	local self = setmetatable({}, PieSession)
 
 	self.name = session_config.name
-	self.harness = session_config.harness or "pi"
+	self.harness = session_config.harness or "opencode"
 	self.task_port = self:randomize_port(1024, 65535)
 	self.work_dir = vim.fn.fnamemodify(session_config.work_dir, ":p")
 	self.commander = session_config.commander
@@ -123,34 +123,18 @@ function PieSession:new(session_config)
 	self.setup = false
 	self.harness_initialized = false
 
-	-- vim.print("=====")
-	-- vim.print("name: " .. vim.inspect(self.name))
-	-- vim.print("is worker session: " .. vim.inspect(self:is_worker_session()))
-	-- vim.print("work dir: " .. vim.inspect(self.work_dir))
-
 	if self:is_worker_session() then
 		local worktrees_dir = self.work_dir .. "worktrees"
-		-- vim.print("worktree dir: " .. vim.inspect(worktrees_dir))
 		vim.fn.mkdir(worktrees_dir, "p")
 		self.dir = vim.fn.fnamemodify(worktrees_dir .. "/" .. session_config.name .. "_" .. self.task_port, ":p")
-		-- vim.print("dir: " .. vim.inspect(self.dir))
 	end
 
 	if self:is_commander() then
 		self.dir = vim.fn.fnamemodify(session_config.dir, ":p")
 	end
 
-	if self:is_commander() and self.harness == "opencode" then
-		self.harness_port = self:randomize_port(1024, 65535, { self.task_port })
-		self.harness_client = self:create_harness_client(self.harness_port)
-	end
-
-	if self.harness == "pi" then
-		self.harness_port = self:randomize_port(1024, 65535, { self.task_port })
-		self.harness_client = self:create_harness_client(self.harness_port)
-	end
-
-	-- vim.print("=====")
+	self.harness_port = self:randomize_port(1024, 65535, { self.task_port })
+	self.harness_client = self:create_harness_client(self.harness_port)
 
 	return self
 end
@@ -169,14 +153,16 @@ end
 
 function PieSession:create_harness_client(port)
 	if self.harness == "opencode" then
-		error(self.harness .. " is not supported due to its concurrency problem. Use `pi` instead.")
+		return OpenCodeClient:new(port)
 	end
 
 	if self.harness == "pi" then
-		return PiClient:new(port)
+		error(
+			self.harness .. " is not supported due to its inability to autosync messages between tui & its jsonl file."
+		)
 	end
 
-	error("Invalid harness. Use `pi`")
+	error("Invalid harness. Use `opencode`")
 end
 
 function PieSession:get_harness_tool_names()
@@ -193,15 +179,7 @@ function PieSession:get_harness_tool_names()
 end
 
 function PieSession:get_harness_port()
-	if self:is_commander() or self.harness == "pi" then
-		return self.harness_port
-	end
-
-	if self:is_worker_session() then
-		return self:get_commander_session().harness_port
-	end
-
-	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
+	return self.harness_port
 end
 
 function PieSession:ensure_harness_session(on_ready)
@@ -214,8 +192,6 @@ function PieSession:ensure_harness_session(on_ready)
 				work_dir = self:get_work_dir(),
 			}).id
 		end
-
-		vim.notify(self.id)
 
 		on_ready()
 		return
@@ -238,11 +214,6 @@ function PieSession:ensure_harness_session(on_ready)
 		}).id
 
 		on_ready()
-		return
-	end
-
-	if self:is_worker_session() then
-		self.commander_session.ensure_harness_session(on_ready)
 		return
 	end
 
@@ -290,39 +261,15 @@ function PieSession:ensure_harness_session(on_ready)
 end
 
 function PieSession:get_harness_client()
-	if self.harness == "pi" or self:is_commander() then
-		return self.harness_client
-	end
-
-	if self:is_worker_session() then
-		return self.commander_session.harness_client
-	end
-
-	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
+	return self.harness_client
 end
 
 function PieSession:get_harness_bootstrap_job()
-	if self.harness == "pi" or self.is_commander(self) then
-		return self.harness_bootstrap_job
-	end
-
-	if self:is_worker_session() then
-		return self.commander_session.harness_bootstrap_job
-	end
-
-	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
+	return self.harness_bootstrap_job
 end
 
 function PieSession:set_harness_bootstrap_job(v)
-	if self.harness == "pi" and self:is_commander() then
-		self.harness_bootstrap_job = v
-	end
-
-	if self:is_worker_session() then
-		self.commander_session.harness_bootstrap_job = v
-	end
-
-	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
+	self.harness_bootstrap_job = v
 end
 
 function PieSession:get_dir()
@@ -423,7 +370,7 @@ function PieSession:teardown()
 
 	if self.harness_bootstrap_job then
 		vim.fn.jobstop(self.harness_bootstrap_job)
-		self.harness_bootstrap_job = nil
+		self:set_harness_bootstrap_job(nil)
 	end
 
 	if self.harness == "pi" then
@@ -522,9 +469,6 @@ function PieSession:init_harness()
 		}, "\n")
 	end
 
-	vim.notify("harness client = " .. vim.inspect(self:get_harness_client()))
-	vim.notify("id = " .. vim.inspect(self.id))
-
 	self:get_harness_client():prompt_async(self.id, {
 		parts = {
 			{ type = "text", text = prompt },
@@ -563,8 +507,6 @@ function PieSession:run_setup_script()
 				end)
 			end,
 		})
-	else
-		vim.notify("Missing setup.sh, skip initialization")
 	end
 
 	self.setup = true
