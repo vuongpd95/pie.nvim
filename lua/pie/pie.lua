@@ -193,7 +193,7 @@ function Pie:show_status()
 		vim.api.nvim_win_close(win, true)
 	end, { buffer = buf, noremap = true, silent = true })
 
-	vim.keymap.set("n", "gd", function()
+	vim.keymap.set("n", "<Enter>", function()
 		local cursor_line = vim.fn.line(".")
 		if cursor_line <= 1 then
 			return

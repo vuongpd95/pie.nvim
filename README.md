@@ -162,7 +162,7 @@ vim.keymap.set("n", "<leader>ps", "<cmd>PieS<CR>", { desc = "Pie team status" })
 
 In the `:PieS` floating window:
 
-- `gd`: switch to the selected session
+- `<Enter>`: switch to the selected session
 - `D`: destroy selected worker session. WARNING: unstaged / staged / committed changes in the worktree and the worktree branch are all destroyed. Your commander has this `destroy_workers` ability too. If you quit `nvim`, it will also destroy all worktrees! Please make sure to not left any work in progress in the worktree.
 - `q` / `<Esc>`: close status window
 
