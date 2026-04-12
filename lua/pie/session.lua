@@ -1,5 +1,5 @@
 local OpenCodeClient = require("pie.opencode")
--- local PiClient = require("pie.pi")
+local PiClient = require("pie.pi")
 local PieSession = {}
 PieSession.__index = PieSession
 
@@ -165,12 +165,8 @@ function PieSession:create_harness_client()
 	end
 
 	if self.harness == "pi" then
-		error(
-			self.harness .. " is not supported due to its inability to autosync messages between tui & its jsonl file."
-		)
+		return PiClient:new(self)
 	end
-
-	error("Invalid harness. Use `opencode`")
 end
 
 function PieSession:get_harness_tool_names()
