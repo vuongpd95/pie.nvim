@@ -440,6 +440,103 @@ function Pie:init(opts)
 		end,
 	})
 
+	vim.api.nvim_create_user_command("PieCreate", function(args)
+		local argv = vim.split(args.args, "%s+")
+		if #argv ~= 2 then
+			vim.notify("Usage: PieCreate <commander_name> <worker_name>", vim.log.levels.ERROR)
+			return
+		end
+		local commander_name = argv[1]
+		local worker_name = argv[2]
+
+		local commander_session = self:find_session(commander_name)
+		if not commander_session then
+			vim.notify("Commander not found: " .. commander_name, vim.log.levels.ERROR)
+			return
+		end
+		if not commander_session:is_commander() then
+			vim.notify("Not a commander session: " .. commander_name, vim.log.levels.ERROR)
+			return
+		end
+
+		local sessions = self:find_or_create_worker_sessions({
+			commander_session = commander_session,
+			worker_names = { worker_name },
+		})
+		if #sessions > 0 then
+			vim.notify("Created worker: " .. worker_name .. " for commander: " .. commander_name)
+		end
+	end, {
+		nargs = 1,
+		complete = function(arg_lead)
+			local parts = vim.split(arg_lead, "%s+")
+			if #parts == 1 then
+				local names = {}
+				for _, s in ipairs(self.sessions) do
+					if s:is_commander() then
+						table.insert(names, s:get_name())
+					end
+				end
+				return names
+			elseif #parts == 2 then
+				return {}
+			end
+		end,
+	})
+
+	vim.api.nvim_create_user_command("PieDestroy", function(args)
+		local argv = vim.split(args.args, "%s+")
+		if #argv ~= 2 then
+			vim.notify("Usage: PieDestroy <commander_name> <worker_name>", vim.log.levels.ERROR)
+			return
+		end
+		local commander_name = argv[1]
+		local worker_name = argv[2]
+
+		local commander_session = self:find_session(commander_name)
+		if not commander_session then
+			vim.notify("Commander not found: " .. commander_name, vim.log.levels.ERROR)
+			return
+		end
+
+		local worker_session = self:destroy_worker_session(commander_session, worker_name)
+		if worker_session then
+			vim.notify("Destroyed worker: " .. worker_name .. " for commander: " .. commander_name)
+		else
+			vim.notify("Worker not found: " .. worker_name, vim.log.levels.ERROR)
+		end
+	end, {
+		nargs = 1,
+		complete = function(arg_lead)
+			local parts = vim.split(arg_lead, "%s+")
+			if #parts == 1 then
+				local names = {}
+				for _, s in ipairs(self.sessions) do
+					if s:is_commander() then
+						table.insert(names, s:get_name())
+					end
+				end
+				return names
+			elseif #parts == 2 then
+				local commander_name = parts[1]
+				local commander_session = self:find_session(commander_name)
+				if commander_session then
+					local names = {}
+					for _, s in ipairs(self.sessions) do
+						if s:is_worker_session() then
+							local comm = s:get_commander_session()
+							if comm and comm:get_name() == commander_name then
+								table.insert(names, s:get_name())
+							end
+						end
+					end
+					return names
+				end
+			end
+			return {}
+		end,
+	})
+
 	vim.api.nvim_create_autocmd("WinNew", {
 		callback = function()
 			vim.schedule(function()

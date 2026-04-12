@@ -223,8 +223,10 @@ These scripts receive environment variables such as:
 
 | Command | Description |
 | --- | --- |
-| `:Pie {session}` | Switch to a commanderr or worker session terminal |
+| `:Pie {session}` | Switch to a commander or worker session terminal |
 | `:PieStatus` | Show commander/worker status for current team |
+| `:PieCreate {commander} {worker}` | Create a worker for a commander (with tab completion) |
+| `:PieDestroy {commander} {worker}` | Destroy a worker for a commander (with tab completion) |
 
 ## Team Tools
 
