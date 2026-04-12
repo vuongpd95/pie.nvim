@@ -423,7 +423,7 @@ function Pie:init(opts)
 		end,
 	})
 
-	vim.api.nvim_create_user_command("PieStatus", function(args)
+	vim.api.nvim_create_user_command("PieS", function(args)
 		self:show_status()
 	end, { nargs = 0 })
 
@@ -440,10 +440,10 @@ function Pie:init(opts)
 		end,
 	})
 
-	vim.api.nvim_create_user_command("PieCreate", function(args)
-		local argv = vim.split(args.args, "%s+")
+	vim.api.nvim_create_user_command("PieC", function(args)
+		local argv = vim.split(args.args, "/")
 		if #argv ~= 2 then
-			vim.notify("Usage: PieCreate <commander_name> <worker_name>", vim.log.levels.ERROR)
+			vim.notify("Usage: PieC <commander_name>/<worker_name>", vim.log.levels.ERROR)
 			return
 		end
 		local commander_name = argv[1]
@@ -469,12 +469,12 @@ function Pie:init(opts)
 	end, {
 		nargs = 1,
 		complete = function(arg_lead)
-			local parts = vim.split(arg_lead, "%s+")
+			local parts = vim.split(arg_lead, "/")
 			if #parts == 1 then
 				local names = {}
 				for _, s in ipairs(self.sessions) do
 					if s:is_commander() then
-						table.insert(names, s:get_name())
+						table.insert(names, s:get_name() .. "/")
 					end
 				end
 				return names
@@ -484,10 +484,10 @@ function Pie:init(opts)
 		end,
 	})
 
-	vim.api.nvim_create_user_command("PieDestroy", function(args)
-		local argv = vim.split(args.args, "%s+")
+	vim.api.nvim_create_user_command("PieD", function(args)
+		local argv = vim.split(args.args, "/")
 		if #argv ~= 2 then
-			vim.notify("Usage: PieDestroy <commander_name> <worker_name>", vim.log.levels.ERROR)
+			vim.notify("Usage: PieD <commander_name>/<worker_name>", vim.log.levels.ERROR)
 			return
 		end
 		local commander_name = argv[1]
@@ -508,12 +508,12 @@ function Pie:init(opts)
 	end, {
 		nargs = 1,
 		complete = function(arg_lead)
-			local parts = vim.split(arg_lead, "%s+")
+			local parts = vim.split(arg_lead, "/")
 			if #parts == 1 then
 				local names = {}
 				for _, s in ipairs(self.sessions) do
 					if s:is_commander() then
-						table.insert(names, s:get_name())
+						table.insert(names, s:get_name() .. "/")
 					end
 				end
 				return names

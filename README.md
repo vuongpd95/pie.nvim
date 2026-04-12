@@ -150,17 +150,17 @@ Switch to a configured session:
 Open the team status view for the current team:
 
 ```vim
-:PieStatus
+:PieS
 ```
 
 Example keymaps:
 
 ```lua
 vim.keymap.set("n", "<leader>pp", "<cmd>Pie pie<CR>", { desc = "Open pie session" })
-vim.keymap.set("n", "<leader>ps", "<cmd>PieStatus<CR>", { desc = "Pie team status" })
+vim.keymap.set("n", "<leader>ps", "<cmd>PieS<CR>", { desc = "Pie team status" })
 ```
 
-In the `:PieStatus` floating window:
+In the `:PieS` floating window:
 
 - `gd`: switch to the selected session
 - `D`: destroy selected worker session. WARNING: unstaged / staged / committed changes in the worktree and the worktree branch are all destroyed. Your commander has this `destroy_workers` ability too. If you quit `nvim`, it will also destroy all worktrees! Please make sure to not left any work in progress in the worktree.
@@ -224,9 +224,9 @@ These scripts receive environment variables such as:
 | Command | Description |
 | --- | --- |
 | `:Pie {session}` | Switch to a commander or worker session terminal |
-| `:PieStatus` | Show commander/worker status for current team |
-| `:PieCreate {commander} {worker}` | Create a worker for a commander (with tab completion) |
-| `:PieDestroy {commander} {worker}` | Destroy a worker for a commander (with tab completion) |
+| `:PieS` | Show commander/worker status for current team |
+| `:PieC {commander}/{worker}` | Create a worker for a commander (with tab completion, type commander name then press Tab to complete with slash) |
+| `:PieD {commander}/{worker}` | Destroy a worker for a commander (with tab completion) |
 
 ## Team Tools
 
