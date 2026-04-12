@@ -19,6 +19,7 @@ function Pie:new()
 	self.sessions = {}
 	self.win = nil
 	self.current = nil
+	self.team = true
 	return self
 end
 
@@ -386,6 +387,7 @@ function Pie:add_session(config)
 
 	local PieSession = require("pie.session")
 	config.commander = true
+	config.team = self.team
 	table.insert(self.sessions, PieSession:new(config))
 end
 
@@ -396,6 +398,10 @@ function Pie:init(opts)
 
 	if not opts or not opts.sessions or #opts.sessions == 0 then
 		error("Pie: opts.sessions is required and must not be empty")
+	end
+
+	if opts.team ~= nil then
+		self.team = opts.team
 	end
 
 	for _, config in ipairs(opts.sessions) do
@@ -485,6 +491,7 @@ function Pie:find_or_create_worker_sessions(config)
 			work_dir = commander_session:get_work_dir(),
 			commander = false,
 			commander_session = commander_session,
+			team = self.team,
 		}
 
 		local PieSession = require("pie.session")

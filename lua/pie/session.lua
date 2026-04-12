@@ -123,6 +123,7 @@ function PieSession:new(session_config)
 	self.working_status = session_config.working_status or "ready"
 	self.setup = false
 	self.harness_initialized = false
+	self.team = session_config.team
 
 	if self:is_worker_session() then
 		local worktrees_dir = self.work_dir .. "worktrees"
@@ -170,6 +171,10 @@ function PieSession:create_harness_client()
 end
 
 function PieSession:get_harness_tool_names()
+	if self.team == false then
+		return {}
+	end
+
 	local buddy = require("pie.buddy")
 	local tool_names = {}
 
@@ -431,7 +436,7 @@ function PieSession:init_session_background()
 end
 
 function PieSession:init_harness()
-	if self.harness_initialized then
+	if self.harness_initialized or self.team == false then
 		return
 	end
 

@@ -57,6 +57,7 @@ return {
     "arismoko/buddy.nvim",
   },
   opts = {
+    team = true,
     sessions = {
       {
         name = "name-of-one-of-your-repo",
@@ -171,6 +172,7 @@ In the `:PieStatus` floating window:
 
 ```lua
 require("pie").setup({
+  team = true,
   sessions = {
     {
       name = "name-of-one-of-your-repo",
@@ -181,6 +183,12 @@ require("pie").setup({
   },
 })
 ```
+
+### Global options
+
+| Key | Type | Required | Description |
+| --- | --- | --- | --- |
+| `team` | boolean | no | Enable team mode (default: `true`). Set to `false` to disable team coordination tools for this session |
 
 ### Session options
 
