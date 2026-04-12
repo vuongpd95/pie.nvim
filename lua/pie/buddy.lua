@@ -110,7 +110,7 @@ return {
 				end
 
 				recipient_session:ensure_harness_session(function()
-					recipient_session:get_harness_client():prompt_async(recipient_session.id, {
+					recipient_session:get_harness_client():prompt_async({
 						parts = {
 							{
 								type = "text",

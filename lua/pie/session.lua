@@ -1,4 +1,5 @@
 local OpenCodeClient = require("pie.opencode")
+-- local PiClient = require("pie.pi")
 local PieSession = {}
 PieSession.__index = PieSession
 
@@ -142,6 +143,10 @@ function PieSession:new(session_config)
 	return self
 end
 
+function PieSession:get_id()
+	return self.id
+end
+
 function PieSession:get_commander_session()
 	if self:is_commander() then
 		return self
@@ -156,7 +161,7 @@ end
 
 function PieSession:create_harness_client(port)
 	if self.harness == "opencode" then
-		return OpenCodeClient:new(port)
+		return OpenCodeClient:new(self)
 	end
 
 	if self.harness == "pi" then
@@ -189,11 +194,7 @@ function PieSession:ensure_harness_session(on_ready)
 	-- The case in which iit's not necessary to init the coding agent server
 	if self:get_harness_client():open_serve_cmd() == nil then
 		if not self.id then
-			self.id = self:get_harness_client():find_or_create_session({
-				id = self.id,
-				title = self:get_harness_client():session_title(self.name),
-				work_dir = self:get_work_dir(),
-			}).id
+			self.id = self:get_harness_client():find_or_create_session().id
 		end
 
 		on_ready()
@@ -210,11 +211,7 @@ function PieSession:ensure_harness_session(on_ready)
 	end
 
 	if not self.id and self:get_harness_bootstrap_job() then
-		self.id = self:get_harness_client():find_or_create_session({
-			id = self.id,
-			title = self:get_harness_client():session_title(self.name),
-			work_dir = self:get_work_dir(),
-		}).id
+		self.id = self:get_harness_client():find_or_create_session().id
 
 		on_ready()
 		return
@@ -251,11 +248,7 @@ function PieSession:ensure_harness_session(on_ready)
 			self.timer = nil
 
 			if not self.id then
-				self.id = self:get_harness_client():find_or_create_session({
-					id = self.id,
-					title = self:get_harness_client():session_title(self.name),
-					work_dir = self:get_work_dir(),
-				}).id
+				self.id = self:get_harness_client():find_or_create_session().id
 			end
 
 			on_ready()
@@ -339,7 +332,7 @@ function PieSession:open(win)
 	self:run_setup_script()
 	self:ensure_harness_session(function()
 		self:init_harness()
-		vim.cmd("terminal " .. self:get_harness_client():attach_tui_cmd(self.id, self:get_dir()))
+		vim.cmd("terminal " .. self:get_harness_client():attach_tui_cmd())
 
 		vim.api.nvim_set_current_win(win)
 		local bufnr = vim.api.nvim_get_current_buf()
@@ -368,6 +361,7 @@ function PieSession:teardown()
 		local chan = vim.bo[self.bufnr].channel
 		if chan then
 			vim.api.nvim_chan_send(chan, vim.keycode("<C-c>"))
+			self:get_harness_client():teardown()
 		end
 	end
 
@@ -472,7 +466,7 @@ function PieSession:init_harness()
 		}, "\n")
 	end
 
-	self:get_harness_client():prompt_async(self.id, {
+	self:get_harness_client():prompt_async({
 		parts = {
 			{ type = "text", text = prompt },
 		},
