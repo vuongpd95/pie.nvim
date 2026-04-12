@@ -138,7 +138,7 @@ function PieSession:new(session_config)
 		self.task_port,
 		7234, -- this is the buddy.nvim MCP server port
 	})
-	self.harness_client = self:create_harness_client(self.harness_port)
+	self.harness_client = self:create_harness_client()
 
 	return self
 end
@@ -159,7 +159,7 @@ function PieSession:get_commander_session()
 	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
 end
 
-function PieSession:create_harness_client(port)
+function PieSession:create_harness_client()
 	if self.harness == "opencode" then
 		return OpenCodeClient:new(self)
 	end

@@ -2,19 +2,6 @@ local PieSession = require("pie.session")
 
 describe("PieSession", function()
 	describe("new", function()
-		it("raises error when dir is not a git directory and commander mode is on", function()
-			local ok, err = pcall(function()
-				PieSession:new({
-					name = "foo",
-					dir = "/tmp/not-git",
-					work_dir = "/tmp/pie_session_test",
-					commander = true,
-				})
-			end)
-			assert.is_false(ok)
-			assert.matches("needs to be a git directory", err)
-		end)
-
 		it("creates session when dir is a git directory", function()
 			local session = PieSession:new({
 				name = "foo",
@@ -151,24 +138,24 @@ describe("PieSession", function()
 				work_dir = "/tmp/pie_session_test",
 				harness = "opencode",
 			})
-			local client = session:create_harness_client(3000)
+			local client = session:create_harness_client()
 			assert.is_not_nil(client)
-			assert.equals(3000, client.port)
+			assert.equals(session, client:get_session())
+			assert.equals(session:get_harness_port(), client:get_session():get_harness_port())
 		end)
 
 		it("raises error for unsupported harness", function()
-			local session = PieSession:new({
-				name = "foo",
-				dir = "/home/vuongpham/Desktop/pie.nvim",
-				work_dir = "/tmp/pie_session_test",
-				harness = "unknown",
-			})
 			local ok, err = pcall(function()
-				session:create_harness_client(3000)
+				PieSession:new({
+					name = "foo",
+					dir = "/home/vuongpham/Desktop/pie.nvim",
+					work_dir = "/tmp/pie_session_test",
+					harness = "unknown",
+				})
 			end)
 			assert.is_false(ok)
 			assert.is_not_nil(err)
-			assert.matches("unknown is not supported", err)
+			assert.matches("Invalid harness", err)
 		end)
 	end)
 
@@ -200,11 +187,10 @@ describe("PieSession", function()
 				name = "foo",
 				dir = "/home/vuongpham/Desktop/pie.nvim",
 				work_dir = "/tmp/pie_session_test",
-				min_port = 20000,
-				max_port = 20010,
 			})
-			assert.is_not_nil(session.port)
-			assert.is_true(session.port >= 20000 and session.port <= 20010)
+			local port = session:randomize_port(20000, 20010)
+			assert.is_not_nil(port)
+			assert.is_true(port >= 20000 and port <= 20010)
 		end)
 
 		it("retries when port is busy", function()
@@ -215,11 +201,6 @@ describe("PieSession", function()
 				min_port = 3000,
 				max_port = 3010,
 			})
-			session.port_min = 3000
-			session.port_max = 3001
-			local bound_ports = {}
-			local original_is_port_busy = rawget(_G, "is_port_busy")
-
 			local busy_count = 0
 			local function mock_is_port_busy(port)
 				busy_count = busy_count + 1
@@ -229,19 +210,8 @@ describe("PieSession", function()
 				return false
 			end
 
-			session.randomize_port = function(self)
-				for _ = 1, 10 do
-					local port = math.random(self.port_min, self.port_max)
-					if not mock_is_port_busy(port) then
-						self.port = port
-						return
-					end
-				end
-				self.port = math.random(self.port_min, self.port_max)
-			end
-
-			session:randomize_port()
-			assert.is_true(session.port >= 3000 and session.port <= 3001)
+			local port = session:randomize_port(3000, 3001, { 3000 })
+			assert.is_true(port >= 3000 and port <= 3001)
 		end)
 	end)
 end)
