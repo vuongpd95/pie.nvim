@@ -109,43 +109,14 @@ function OpencodeClient:find_or_create_session()
 end
 
 function OpencodeClient:teardown()
-	local container_name = "opencode_" .. self:get_session():get_harness_port()
-	vim.notify("Stopping container " .. container_name)
-	vim.cmd("docker rm " .. container_name)
-	vim.notify("Stopped container " .. container_name)
+	-- noop
 end
 
 function OpencodeClient:open_serve_cmd()
-	if not self:get_session():get_dir() then
-		error("dir is required for open_serve_cmd")
-	end
-
-	local container_name = "opencode_" .. self:get_session():get_harness_port()
-	local config_mount = vim.fn.expand("~") .. "/.config/opencode/opencode.json"
-	local auth_mount = vim.fn.expand("~") .. "/.local/share/opencode/auth.json"
-
-	local cmd = string.format(
-		[[docker run -d --name %s \
-    --user opencode:opencode \
-    -v %s:/home/user/.config/opencode/opencode.json \
-    -v %s:/home/user/.local/share/opencode/auth.json \
-    -v %s:/home/user/work %s serve --hostname 127.0.0.1 --port %s]],
-		container_name,
-		vim.fn.shellescape(config_mount),
-		vim.fn.shellescape(auth_mount),
-		vim.fn.shellescape(self:get_session():get_dir()),
-		"opencode-local opencode",
-		self:get_session():get_harness_port()
-	)
-
-	return cmd
+	return "opencode serve --hostname 127.0.0.1 --port " .. self:get_session():get_harness_port()
 end
 
 function OpencodeClient:attach_tui_cmd()
-	if self:get_session():get_id() then
-		error("session id is required")
-	end
-
 	return "opencode attach http://127.0.0.1:"
 		.. self:get_session():get_harness_port()
 		.. " -s "
