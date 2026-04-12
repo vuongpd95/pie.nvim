@@ -24,7 +24,7 @@ function OpencodeClient:_request(method, endpoint, body, raise_error)
 	if body then
 		cmd = cmd .. " --body-data=" .. vim.fn.shellescape(vim.fn.json_encode(body))
 	end
-	cmd = cmd .. " " .. vim.fn.shellescape(self.base_url .. endpoint)
+	cmd = cmd .. " " .. vim.fn.shellescape(self:get_base_url() .. endpoint)
 
 	local result = vim.fn.system(cmd)
 	local ok, decoded = pcall(vim.fn.json_decode, result)
@@ -46,7 +46,7 @@ function OpencodeClient:_request_no_content(method, endpoint, body, expected_sta
 	if body then
 		cmd = cmd .. " --body-data=" .. vim.fn.shellescape(vim.fn.json_encode(body))
 	end
-	cmd = cmd .. " " .. vim.fn.shellescape(self.base_url .. endpoint) .. " 2>&1"
+	cmd = cmd .. " " .. vim.fn.shellescape(self:get_base_url() .. endpoint) .. " 2>&1"
 
 	local result = vim.fn.system(cmd)
 	local status
@@ -110,7 +110,9 @@ end
 
 function OpencodeClient:teardown()
 	local container_name = "opencode_" .. self:get_session():get_harness_port()
+	vim.notify("Stopping container " .. container_name)
 	vim.cmd("docker rm " .. container_name)
+	vim.notify("Stopped container " .. container_name)
 end
 
 function OpencodeClient:open_serve_cmd()
@@ -127,16 +129,14 @@ function OpencodeClient:open_serve_cmd()
     --user opencode:opencode \
     -v %s:/home/user/.config/opencode/opencode.json \
     -v %s:/home/user/.local/share/opencode/auth.json \
-    -v %s:/home/user/work %s serve --hostname 127.0.0.1 --port %s"]],
+    -v %s:/home/user/work %s serve --hostname 127.0.0.1 --port %s]],
 		container_name,
 		vim.fn.shellescape(config_mount),
 		vim.fn.shellescape(auth_mount),
 		vim.fn.shellescape(self:get_session():get_dir()),
-		"opencode-local",
+		"opencode-local opencode",
 		self:get_session():get_harness_port()
 	)
-
-	error(cmd)
 
 	return cmd
 end
