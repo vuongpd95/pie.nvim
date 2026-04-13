@@ -71,9 +71,9 @@ local function run_script(env, script_name, opts)
 	end
 
 	local cmd = env_str .. "bash " .. vim.fn.shellescape(script_path)
-	-- if log_file then
-	-- 	cmd = cmd .. " > " .. vim.fn.shellescape(log_file) .. " 2>&1"
-	-- end
+	if log_file then
+		cmd = cmd .. " > " .. vim.fn.shellescape(log_file) .. " 2>&1"
+	end
 
 	vim.fn.jobstart(cmd, {
 		detach = true,
@@ -122,6 +122,7 @@ function PieSession:new(session_config)
 	self.commander_session = session_config.commander_session
 	self.working_status = session_config.working_status or "ready"
 	self.setup = false
+	self.run = false
 	self.harness_initialized = false
 	self.team = session_config.team
 
@@ -333,6 +334,7 @@ function PieSession:open(win)
 	self:run_setup_script()
 	self:ensure_harness_session(function()
 		self:init_harness()
+		self:run_run_script()
 		vim.cmd("terminal " .. self:get_harness_client():attach_tui_cmd())
 
 		vim.api.nvim_set_current_win(win)
@@ -508,6 +510,30 @@ function PieSession:run_setup_script()
 	end
 
 	self.setup = true
+end
+
+function PieSession:run_run_script()
+	if self.run then
+		return
+	end
+
+	local env = self:get_env()
+	local pie_dir = env.PIE_DIR
+	local log_file = env.PIE_WORK_DIR .. "/run_" .. self:get_name() .. ".log"
+
+	if vim.fn.filereadable(pie_dir .. "/run.sh") == 1 then
+		vim.notify("Running run.sh...")
+		run_script(env, "run.sh", {
+			log_file = log_file,
+			on_exit = function()
+				vim.schedule(function()
+					vim.notify("Started application with run.sh")
+				end)
+			end,
+		})
+	end
+
+	self.run = true
 end
 
 return PieSession
