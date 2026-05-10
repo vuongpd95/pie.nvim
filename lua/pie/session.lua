@@ -1,72 +1,8 @@
 local PiClient = require("pie.pi")
 local Git = require("pie.git")
+local Utils = require("pie.utils")
 local PieSession = {}
 PieSession.__index = PieSession
-
-local function is_port_busy(port)
-	local handle = vim.uv.new_tcp()
-
-	if handle == nil then
-		error("PieSession: Unable to verify if a port is busy")
-	end
-
-	local ok = handle:bind("127.0.0.1", port)
-	handle:close()
-	return not ok
-end
-
-local function run_script(env, script_name, opts)
-	opts = opts or {}
-	local log_file = opts.log_file
-	local on_exit = opts.on_exit
-
-	local pie_dir = env.PIE_DIR
-	local script_path = pie_dir .. "/" .. script_name
-
-	if vim.fn.filereadable(script_path) ~= 1 then
-		return
-	end
-
-	local env_str = ""
-	for k, v in pairs(env) do
-		env_str = env_str .. k .. "=" .. v .. " "
-	end
-
-	local cmd = env_str .. "bash " .. vim.fn.shellescape(script_path)
-	if log_file then
-		cmd = cmd .. " > " .. vim.fn.shellescape(log_file) .. " 2>&1"
-	end
-
-	vim.fn.jobstart(cmd, {
-		detach = true,
-		on_exit = on_exit and function(_, code)
-			vim.schedule(function()
-				on_exit(code)
-			end)
-		end or nil,
-	})
-end
-
-local function get_random_port(min_port, max_port)
-	return math.random(min_port, max_port)
-end
-
-function PieSession:randomize_port(min_port, max_port, excluded_ports)
-	excluded_ports = excluded_ports or {}
-	local excluded_set = {}
-	for _, port in ipairs(excluded_ports) do
-		excluded_set[port] = true
-	end
-
-	local max_attempts = 10
-	for _ = 1, max_attempts do
-		local port = get_random_port(min_port, max_port)
-		if not excluded_set[port] and not is_port_busy(port) then
-			return port
-		end
-	end
-	error("Failed to find an available port after " .. max_attempts .. " attempts")
-end
 
 function PieSession:is_worker_session()
 	return (not self.commander) and (self.commander_session ~= nil)
@@ -77,7 +13,7 @@ function PieSession:new(session_config)
 
 	self.name = session_config.name
 	self.harness = "pi"
-	self.task_port = self:randomize_port(1024, 65535)
+	self.task_port = Utils.randomize_port(1024, 65535)
 	self.work_dir = vim.fn.fnamemodify(session_config.work_dir, ":p")
 	self.commander = session_config.commander
 	self.commander_session = session_config.commander_session
@@ -183,7 +119,7 @@ function PieSession:teardown()
 
 	local env = self:get_env()
 	local log_file = env.PIE_WORK_DIR .. "/teardown_" .. self:get_name() .. ".log"
-	run_script(env, "teardown.sh", {
+	Utils.run_script(env, "teardown.sh", {
 		log_file = log_file,
 	})
 end
@@ -251,7 +187,7 @@ function PieSession:run_setup_script()
 
 	if vim.fn.filereadable(pie_dir .. "/setup.sh") == 1 then
 		vim.notify("Running setup.sh...")
-		run_script(env, "setup.sh", {
+		Utils.run_script(env, "setup.sh", {
 			log_file = log_file,
 			on_exit = function()
 				vim.schedule(function()
@@ -275,7 +211,7 @@ function PieSession:run_run_script()
 
 	if vim.fn.filereadable(pie_dir .. "/run.sh") == 1 then
 		vim.notify("Running run.sh...")
-		run_script(env, "run.sh", {
+		Utils.run_script(env, "run.sh", {
 			log_file = log_file,
 			on_exit = function()
 				vim.schedule(function()
