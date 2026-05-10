@@ -34,7 +34,6 @@ If behavior differs on your machine, compare against this environment first and 
 
 | Component | Version on author machine |
 | --- | --- |
-| Arch Linux | rolling (`/etc/os-release`: `BUILD_ID=rolling`) |
 | Neovim | `v0.11.6` |
 | Neovim LuaJIT | `2.1.1772619647` |
 | Pi | `0.72.1` |
