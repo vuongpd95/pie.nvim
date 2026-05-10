@@ -40,7 +40,6 @@ If behavior differs on your machine, compare against this environment first and 
 | Pi | `0.72.1` |
 | GNU Wget | `1.25.0` |
 | Git | `2.53.0` |
-| `buddy.nvim` | `cc79e1b` (`2026-03-12`, `fix: skip config dir paths in tool discovery`) |
 
 Why `wget`? Because I haven't built the HTTP client for my plugin yet!
 
