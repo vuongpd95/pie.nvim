@@ -37,10 +37,6 @@ function PieSession:new(session_config)
 	return self
 end
 
-function PieSession:get_id()
-	return self.id
-end
-
 function PieSession:get_commander_session()
 	if self:is_commander() then
 		return self
@@ -106,10 +102,6 @@ function PieSession:open()
 end
 
 function PieSession:teardown()
-	if self.harness == "pi" then
-		vim.fn.delete(self.id)
-	end
-
 	if self:is_worker_session() then
 		local commander_dir = self.commander_session:get_dir()
 		local env = self:get_env()

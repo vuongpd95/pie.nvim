@@ -1,4 +1,5 @@
 local Pie = require("pie.pie")
+local Utils = require("pie.utils")
 
 describe("Pie", function()
 	local pie
@@ -40,20 +41,20 @@ describe("Pie", function()
 	describe("get_win_pie_width", function()
 		it("calculates width as 30% of columns", function()
 			vim.o.columns = 100
-			local width = pie:get_win_pie_width()
+			local width = Utils.get_win_pie_width()
 			assert.equals(30, width)
 		end)
 
 		it("floors the result", function()
 			vim.o.columns = 101
-			local width = pie:get_win_pie_width()
+			local width = Utils.get_win_pie_width()
 			assert.equals(30, width)
 		end)
 	end)
 
 	describe("get_win_neotree_width", function()
 		it("returns default width when neo-tree not loaded", function()
-			local width = pie:get_win_neotree_width()
+			local width = Utils.get_win_neotree_width()
 			assert.equals(40, width)
 		end)
 	end)
@@ -62,7 +63,12 @@ describe("Pie", function()
 		it("initializes sessions from opts.sessions", function()
 			local opts = {
 				sessions = {
-					{ name = "test", dir = "/home/vuongpham/Desktop/pie.nvim", work_dir = "/tmp/pie_test", commander = true },
+					{
+						name = "test",
+						dir = "/home/vuongpham/Desktop/pie.nvim",
+						work_dir = "/tmp/pie_test",
+						commander = true,
+					},
 				},
 			}
 			pie:init(opts)
@@ -145,9 +151,19 @@ describe("Pie", function()
 		end)
 
 		it("raises error when session dir already exists", function()
-			pie:add_session({ name = "foo", dir = "/home/vuongpham/Desktop/pie.nvim", work_dir = "/tmp/pie_test", commander = true })
+			pie:add_session({
+				name = "foo",
+				dir = "/home/vuongpham/Desktop/pie.nvim",
+				work_dir = "/tmp/pie_test",
+				commander = true,
+			})
 			local ok, err = pcall(function()
-				pie:add_session({ name = "bar", dir = "/home/vuongpham/Desktop/pie.nvim", work_dir = "/tmp/pie_test", commander = true })
+				pie:add_session({
+					name = "bar",
+					dir = "/home/vuongpham/Desktop/pie.nvim",
+					work_dir = "/tmp/pie_test",
+					commander = true,
+				})
 			end)
 			assert.is_false(ok)
 			assert.is_not_nil(err)

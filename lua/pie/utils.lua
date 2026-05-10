@@ -1,5 +1,38 @@
 local Utils = {}
 
+function Utils.safe_compare(p1, p2)
+	local is_windows = vim.uv.os_uname().sysname:find("Windows")
+
+	p1 = vim.uv.fs_realpath(vim.fn.expand(p1)) or vim.fn.fnamemodify(p1, ":p")
+	p2 = vim.uv.fs_realpath(vim.fn.expand(p2)) or vim.fn.fnamemodify(p2, ":p")
+
+	if is_windows then
+		return p1:lower() == p2:lower()
+	end
+	return p1 == p2
+end
+
+function Utils.normalize_dir(dir)
+	return vim.fn.fnamemodify(dir, ":p")
+end
+
+function Utils.change_dir(dir)
+	if not dir then
+		return
+	end
+
+	vim.cmd("cd " .. dir)
+
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buflisted then
+			local bufpath = vim.api.nvim_buf_get_name(buf)
+			if bufpath ~= "" and not vim.startswith(bufpath, dir) then
+				vim.api.nvim_buf_delete(buf, { force = true })
+			end
+		end
+	end
+end
+
 function Utils.is_port_busy(port)
 	local handle = vim.uv.new_tcp()
 

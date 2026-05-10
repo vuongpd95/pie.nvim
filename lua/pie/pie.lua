@@ -1,18 +1,6 @@
+local Utils = require("pie.utils")
 local Pie = {}
 Pie.__index = Pie
-
-local function safe_compare(p1, p2)
-	local is_windows = vim.uv.os_uname().sysname:find("Windows")
-
-	-- Expand and resolve
-	p1 = vim.uv.fs_realpath(vim.fn.expand(p1)) or vim.fn.fnamemodify(p1, ":p")
-	p2 = vim.uv.fs_realpath(vim.fn.expand(p2)) or vim.fn.fnamemodify(p2, ":p")
-
-	if is_windows then
-		return p1:lower() == p2:lower()
-	end
-	return p1 == p2
-end
 
 function Pie:new()
 	local self = setmetatable({}, Pie)
@@ -22,22 +10,6 @@ function Pie:new()
 	return self
 end
 
-function Pie:get_win_pie_width()
-	return math.floor(vim.o.columns * 0.3)
-end
-
-function Pie:get_win_neotree_width()
-	local nt_width = 40
-	local ok, manager = pcall(require, "neo-tree.sources.manager")
-	if ok then
-		local state = manager.get_state("filesystem")
-		if state and state.window and state.window.width then
-			nt_width = state.window.width
-		end
-	end
-	return nt_width
-end
-
 function Pie:find_session(name)
 	for _, s in ipairs(self.sessions) do
 		if s:get_name() == name then
@@ -45,10 +17,6 @@ function Pie:find_session(name)
 		end
 	end
 	return nil
-end
-
-function Pie:normalize_dir(dir)
-	return vim.fn.fnamemodify(dir, ":p")
 end
 
 function Pie:get_status_list()
@@ -251,7 +219,7 @@ end
 
 function Pie:find_session_by_dir(dir)
 	for _, s in ipairs(self.sessions) do
-		if safe_compare(s:get_dir(), dir) then
+		if Utils.safe_compare(s:get_dir(), dir) then
 			return s
 		end
 	end
@@ -290,55 +258,6 @@ function Pie:destroy_worker_session(commander_session, worker_name)
 	return worker_session
 end
 
-function Pie:readjust_win_widths()
-	if self.win and vim.api.nvim_win_is_valid(self.win) then
-		local width = self:get_win_pie_width()
-		vim.api.nvim_win_set_width(self.win, width)
-	end
-	for _, win in ipairs(vim.api.nvim_list_wins()) do
-		if vim.api.nvim_win_is_valid(win) then
-			local buf = vim.api.nvim_win_get_buf(win)
-			if vim.bo[buf].filetype == "neo-tree" then
-				local nt_width = self:get_win_neotree_width()
-				vim.api.nvim_win_set_width(win, nt_width)
-			end
-		end
-	end
-end
-
-function Pie:ensure_window()
-	if self.win and vim.api.nvim_win_is_valid(self.win) then
-		vim.api.nvim_set_current_win(self.win)
-		return
-	end
-
-	vim.cmd("botright vnew")
-	self.win = vim.api.nvim_get_current_win()
-	vim.wo[self.win].number = false
-	vim.wo[self.win].relativenumber = false
-	vim.wo[self.win].signcolumn = "no"
-	vim.wo[self.win].winfixwidth = true
-	local width = self:get_win_pie_width()
-	vim.api.nvim_win_set_width(self.win, width)
-end
-
-function Pie:change_dir(dir)
-	if not dir then
-		return
-	end
-
-	vim.cmd("cd " .. dir)
-
-	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-		if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buflisted then
-			local bufpath = vim.api.nvim_buf_get_name(buf)
-			if bufpath ~= "" and not vim.startswith(bufpath, dir) then
-				vim.api.nvim_buf_delete(buf, { force = true })
-			end
-		end
-	end
-end
-
 function Pie:switch(session_name)
 	local session = self:find_session(session_name)
 	if not session then
@@ -347,16 +266,10 @@ function Pie:switch(session_name)
 		return
 	end
 
-	self:ensure_window()
-
-	vim.w[self.win].fixed_buf_nr = nil
-
-	self:change_dir(session:get_dir())
-
-	session:open(self.win)
+	Utils.change_dir(session:get_dir())
+	session:open()
 
 	self.current = session_name
-	vim.w[self.win].fixed_buf_nr = session:get_bufnr()
 end
 
 function Pie:add_session(config)
@@ -401,21 +314,6 @@ function Pie:init(opts)
 	for _, config in ipairs(opts.sessions) do
 		self:add_session(config)
 	end
-
-	vim.api.nvim_create_autocmd("BufWinEnter", {
-		callback = function(args)
-			local fixed_buf = vim.w.fixed_buf_nr
-			if fixed_buf and vim.api.nvim_buf_is_valid(fixed_buf) and args.buf ~= fixed_buf then
-				local target_buf = args.buf
-				vim.cmd("noautocmd buffer " .. fixed_buf)
-				vim.cmd("leftabove vsplit")
-				vim.cmd("buffer " .. target_buf)
-				vim.schedule(function()
-					self:readjust_win_widths()
-				end)
-			end
-		end,
-	})
 
 	vim.api.nvim_create_user_command("PieS", function(args)
 		self:show_status()
@@ -528,29 +426,6 @@ function Pie:init(opts)
 				end
 			end
 			return {}
-		end,
-	})
-
-	vim.api.nvim_create_autocmd("WinNew", {
-		callback = function()
-			vim.schedule(function()
-				self:readjust_win_widths()
-			end)
-		end,
-	})
-
-	vim.api.nvim_create_autocmd("WinEnter", {
-		callback = function()
-			local win_valid = self.win
-				and vim.api.nvim_win_is_valid(self.win)
-				and vim.api.nvim_get_current_win() == self.win
-			if not win_valid then
-				return
-			end
-			local buf = vim.api.nvim_win_get_buf(self.win)
-			if vim.bo[buf].buftype == "terminal" then
-				vim.cmd("startinsert")
-			end
 		end,
 	})
 
