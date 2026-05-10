@@ -114,7 +114,7 @@ function PieSession:new(session_config)
 	local self = setmetatable({}, PieSession)
 
 	self.name = session_config.name
-	self.harness = session_config.harness or "opencode"
+	self.harness = "pi"
 	self.task_port = self:randomize_port(1024, 65535)
 	self.work_dir = vim.fn.fnamemodify(session_config.work_dir, ":p")
 	self.commander = session_config.commander
@@ -124,7 +124,6 @@ function PieSession:new(session_config)
 	self.setup = false
 	self.run = false
 	self.harness_initialized = false
-	self.team = session_config.team
 
 	if self:is_worker_session() then
 		local worktrees_dir = self.work_dir .. "worktrees"
@@ -172,20 +171,7 @@ function PieSession:create_harness_client()
 end
 
 function PieSession:get_harness_tool_names()
-	if self.team == false then
-		return {}
-	end
-
-	local buddy = require("pie.buddy")
-	local tool_names = {}
-
-	for _, tool in ipairs(buddy.tools or {}) do
-		if self:is_commander() or tool.for_worker == true then
-			table.insert(tool_names, tool.name)
-		end
-	end
-
-	return tool_names
+	return {}
 end
 
 function PieSession:get_harness_port()
@@ -420,16 +406,6 @@ function PieSession:get_env()
 	end
 end
 
-function PieSession:in_a_team()
-	local commander_session = self:get_commander_session()
-
-	if commander_session == nil then
-		return false
-	end
-
-	return is_git_dir(commander_session:get_dir())
-end
-
 function PieSession:init_session_background()
 	self:ensure_harness_session(function()
 		self:init_harness()
@@ -438,42 +414,9 @@ function PieSession:init_session_background()
 end
 
 function PieSession:init_harness()
-	if self.harness_initialized or self.team == false then
+	if self.harness_initialized then
 		return
 	end
-
-	if not self.id then
-		error("PieSession: call ensure_harness_session first")
-	end
-
-	local role = self:get_role()
-	local tool_names = self:get_harness_tool_names()
-
-	local prompt
-
-	if self:in_a_team() then
-		prompt = table.concat({
-			'Your name is "' .. self:get_name() .. '".',
-			"You are working in a team of commander and workers to help me with my jobs.",
-			"You are a " .. role .. " of the team.",
-			"You should call the tool `profile` to get to know your personal details within the team.",
-			"You should use the tool `update_working_status` before you start and after finishing a job assigned to you by me or by the commander.",
-			"As a " .. role .. ", you have access to these tools: " .. table.concat(tool_names, ", ") .. ".",
-		}, "\n")
-	else
-		prompt = table.concat({
-			'Your name is "' .. self:get_name() .. '".',
-			"You are not working in a team of commander and workers.",
-			"Hence, you shouldn't use these tools: " .. table.concat(tool_names, ", ") .. ".",
-			"Let me know that if I want the team mode, the commander working dir should be a git repository.",
-		}, "\n")
-	end
-
-	self:get_harness_client():prompt_async({
-		parts = {
-			{ type = "text", text = prompt },
-		},
-	})
 
 	self.harness_initialized = true
 end
