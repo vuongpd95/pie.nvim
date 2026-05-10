@@ -14,7 +14,7 @@ function PieSession:new(session_config)
 	self.name = session_config.name
 	self.harness = "pi"
 	self.task_port = Utils.randomize_port(1024, 65535)
-	self.work_dir = vim.fn.fnamemodify(session_config.work_dir, ":p")
+	self.work_dir = Utils.normalize_dir(session_config.work_dir)
 	self.commander = session_config.commander
 	self.commander_session = session_config.commander_session
 	self.working_status = session_config.working_status or "ready"
@@ -25,11 +25,11 @@ function PieSession:new(session_config)
 	if self:is_worker_session() then
 		local worktrees_dir = self.work_dir .. "worktrees"
 		vim.fn.mkdir(worktrees_dir, "p")
-		self.dir = vim.fn.fnamemodify(worktrees_dir .. "/" .. session_config.name .. "_" .. self.task_port, ":p")
+		self.dir = Utils.normalize_dir(worktrees_dir .. "/" .. session_config.name .. "_" .. self.task_port)
 	end
 
 	if self:is_commander() then
-		self.dir = vim.fn.fnamemodify(session_config.dir, ":p")
+		self.dir = Utils.normalize_dir(session_config.dir)
 	end
 
 	self.harness_client = self:create_harness_client()
