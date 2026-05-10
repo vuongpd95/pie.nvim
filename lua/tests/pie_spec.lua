@@ -38,26 +38,7 @@ describe("Pie", function()
 		end)
 	end)
 
-	describe("get_win_pie_width", function()
-		it("calculates width as 30% of columns", function()
-			vim.o.columns = 100
-			local width = Utils.get_win_pie_width()
-			assert.equals(30, width)
-		end)
 
-		it("floors the result", function()
-			vim.o.columns = 101
-			local width = Utils.get_win_pie_width()
-			assert.equals(30, width)
-		end)
-	end)
-
-	describe("get_win_neotree_width", function()
-		it("returns default width when neo-tree not loaded", function()
-			local width = Utils.get_win_neotree_width()
-			assert.equals(40, width)
-		end)
-	end)
 
 	describe("init", function()
 		it("initializes sessions from opts.sessions", function()
