@@ -5,7 +5,6 @@ Pie.__index = Pie
 function Pie:new()
 	local self = setmetatable({}, Pie)
 	self.sessions = {}
-	self.win = nil
 	self.current = nil
 	return self
 end
@@ -285,13 +284,12 @@ function Pie:add_session(config)
 		error("PieSession: work_dir is required")
 	end
 
-	local absolute_dir = vim.fn.fnamemodify(config.dir, ":p")
-
 	local existing_by_name = self:find_session(config.name)
 	if existing_by_name then
 		error("PieSession: session '" .. config.name .. "' already exists")
 	end
 
+	local absolute_dir = Utils.normalize_dir(config.dir)
 	local existing_by_dir = self:find_session_by_dir(absolute_dir)
 	if existing_by_dir then
 		error("PieSession: dir '" .. absolute_dir .. "' already exists")

@@ -53,6 +53,8 @@ function PieSession:create_harness_client()
 	if self.harness == "pi" then
 		return PiClient:new(self)
 	end
+
+	error("PieSession: Only the 'Pi' coding agent is supported at the moment")
 end
 
 function PieSession:get_dir()
@@ -96,8 +98,8 @@ function PieSession:get_role()
 end
 
 function PieSession:open()
-	self:run_setup_script()
 	self:init_harness()
+	self:run_setup_script()
 	self:run_run_script()
 end
 
