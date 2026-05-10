@@ -1,45 +1,7 @@
-local OpenCodeClient = require("pie.opencode")
 local PiClient = require("pie.pi")
+local Git = require("pie.git")
 local PieSession = {}
 PieSession.__index = PieSession
-
-local function is_git_dir(dir)
-	local git_dir = vim.fn.systemlist("git -C " .. vim.fn.shellescape(dir) .. " rev-parse --show-toplevel")
-	return vim.v.shell_error == 0 and #git_dir > 0
-end
-
-local function get_git_branch(dir)
-	local branch = vim.fn.systemlist("git -C " .. vim.fn.shellescape(dir) .. " rev-parse --abbrev-ref HEAD")
-	if vim.v.shell_error == 0 and #branch > 0 then
-		return branch[1]
-	end
-	return nil
-end
-
-local function git_worktree_remove(repo, worktree_branch, worktree_dir)
-	local remove_worktree_cmd = "git -C "
-		.. vim.fn.shellescape(repo)
-		.. " worktree remove "
-		.. vim.fn.shellescape(worktree_dir)
-		.. " --force"
-	local delete_branch_cmd = "git -C "
-		.. vim.fn.shellescape(repo)
-		.. " branch -D "
-		.. vim.fn.shellescape(worktree_branch)
-		.. " --force"
-	vim.fn.system(remove_worktree_cmd)
-	vim.fn.system(delete_branch_cmd)
-end
-
-local function git_worktree_add(repo, worktree_branch, worktree_dir)
-	local add_worktree_cmd = "git -C "
-		.. vim.fn.shellescape(repo)
-		.. " worktree add "
-		.. vim.fn.shellescape(worktree_dir)
-		.. " -b "
-		.. vim.fn.shellescape(worktree_branch)
-	vim.fn.system(add_worktree_cmd)
-end
 
 local function is_port_busy(port)
 	local handle = vim.uv.new_tcp()
@@ -118,7 +80,6 @@ function PieSession:new(session_config)
 	self.task_port = self:randomize_port(1024, 65535)
 	self.work_dir = vim.fn.fnamemodify(session_config.work_dir, ":p")
 	self.commander = session_config.commander
-	self.bufnr = nil
 	self.commander_session = session_config.commander_session
 	self.working_status = session_config.working_status or "ready"
 	self.setup = false
@@ -135,10 +96,6 @@ function PieSession:new(session_config)
 		self.dir = vim.fn.fnamemodify(session_config.dir, ":p")
 	end
 
-	self.harness_port = self:randomize_port(1024, 65535, {
-		self.task_port,
-		7234, -- this is the buddy.nvim MCP server port
-	})
 	self.harness_client = self:create_harness_client()
 
 	return self
@@ -161,99 +118,9 @@ function PieSession:get_commander_session()
 end
 
 function PieSession:create_harness_client()
-	if self.harness == "opencode" then
-		return OpenCodeClient:new(self)
-	end
-
 	if self.harness == "pi" then
 		return PiClient:new(self)
 	end
-end
-
-function PieSession:get_harness_tool_names()
-	return {}
-end
-
-function PieSession:get_harness_port()
-	return self.harness_port
-end
-
-function PieSession:ensure_harness_session(on_ready)
-	-- The case in which iit's not necessary to init the coding agent server
-	if self:get_harness_client():open_serve_cmd() == nil then
-		if not self.id then
-			self.id = self:get_harness_client():find_or_create_session().id
-		end
-
-		on_ready()
-		return
-	end
-
-	-- id & job
-	-- ~id & job
-	-- id & ~job
-	-- ~id & ~job
-	if self.id and self:get_harness_bootstrap_job() then
-		on_ready()
-		return
-	end
-
-	if not self.id and self:get_harness_bootstrap_job() then
-		self.id = self:get_harness_client():find_or_create_session().id
-
-		on_ready()
-		return
-	end
-
-	-- IS COMMANDER BUT THE HARNESS SERVER IS NOT RUNNING
-
-	if self.timer then
-		self.timer:stop()
-		self.timer:close()
-		self.timer = nil
-	end
-
-	local start_cmd = self:get_harness_client():open_serve_cmd()
-	self.harness_bootstrap_job = vim.fn.jobstart(start_cmd)
-
-	self.timer = vim.uv.new_timer()
-
-	if self.timer == nil then
-		error("Timer is nil, unable to start PieSession")
-	end
-
-	self.timer:start(
-		0,
-		1000,
-		vim.schedule_wrap(function()
-			if not self:get_harness_client():is_ready() then
-				vim.notify("Waiting for " .. self.harness .. " at " .. self:get_harness_port() .. "...")
-				return
-			end
-
-			self.timer:stop()
-			self.timer:close()
-			self.timer = nil
-
-			if not self.id then
-				self.id = self:get_harness_client():find_or_create_session().id
-			end
-
-			on_ready()
-		end)
-	)
-end
-
-function PieSession:get_harness_client()
-	return self.harness_client
-end
-
-function PieSession:get_harness_bootstrap_job()
-	return self.harness_bootstrap_job
-end
-
-function PieSession:set_harness_bootstrap_job(v)
-	self.harness_bootstrap_job = v
 end
 
 function PieSession:get_dir()
@@ -296,69 +163,13 @@ function PieSession:get_role()
 	error("PieSession: Unexpected error happened. Session name = " .. self:get_name())
 end
 
-function PieSession:get_bufnr()
-	return self.bufnr
-end
-
-function PieSession:set_bufnr(bufnr)
-	self.bufnr = bufnr
-end
-
-function PieSession:is_valid()
-	if not self.bufnr then
-		return false
-	end
-	return vim.api.nvim_buf_is_valid(self.bufnr)
-end
-
-function PieSession:open(win)
-	if self:is_valid() then
-		vim.api.nvim_win_set_buf(win, self.bufnr)
-		return
-	end
-
+function PieSession:open()
 	self:run_setup_script()
-	self:ensure_harness_session(function()
-		self:init_harness()
-		self:run_run_script()
-		vim.cmd("terminal " .. self:get_harness_client():attach_tui_cmd())
-
-		vim.api.nvim_set_current_win(win)
-		local bufnr = vim.api.nvim_get_current_buf()
-		self:set_bufnr(bufnr)
-
-		vim.bo[bufnr].bufhidden = "hide"
-		vim.bo[bufnr].buflisted = false
-		vim.bo[bufnr].filetype = "pie"
-
-		local mapopts = { silent = true }
-		vim.api.nvim_buf_set_keymap(bufnr, "t", "<C-h>", [[<C-\><C-n><C-w>h]], mapopts)
-		vim.api.nvim_buf_set_keymap(bufnr, "t", "<C-j>", [[<C-\><C-n><C-w>j]], mapopts)
-		vim.api.nvim_buf_set_keymap(bufnr, "t", "<C-k>", [[<C-\><C-n><C-w>k]], mapopts)
-		vim.api.nvim_buf_set_keymap(bufnr, "t", "<C-l>", [[<C-\><C-n><C-w>l]], mapopts)
-	end)
+	self:init_harness()
+	self:run_run_script()
 end
 
 function PieSession:teardown()
-	if self.timer then
-		self.timer:stop()
-		self.timer:close()
-		self.timer = nil
-	end
-
-	if self.bufnr and vim.api.nvim_buf_is_valid(self.bufnr) then
-		local chan = vim.bo[self.bufnr].channel
-		if chan then
-			vim.api.nvim_chan_send(chan, vim.keycode("<C-c>"))
-			self:get_harness_client():teardown()
-		end
-	end
-
-	if self.harness_bootstrap_job then
-		vim.fn.jobstop(self.harness_bootstrap_job)
-		self:set_harness_bootstrap_job(nil)
-	end
-
 	if self.harness == "pi" then
 		vim.fn.delete(self.id)
 	end
@@ -367,7 +178,7 @@ function PieSession:teardown()
 		local commander_dir = self.commander_session:get_dir()
 		local env = self:get_env()
 		local task_branch = env.PIE_TASK_BRANCH
-		git_worktree_remove(commander_dir, task_branch, self.dir)
+		Git.worktree_remove(commander_dir, task_branch, self.dir)
 	end
 
 	local env = self:get_env()
@@ -379,7 +190,7 @@ end
 
 function PieSession:get_env()
 	if self:is_commander() then
-		local pie_branch = get_git_branch(self:get_dir())
+		local pie_branch = Git.get_git_branch(self:get_dir())
 		return {
 			PIE_DIR = self.dir,
 			PIE_BRANCH = pie_branch,
@@ -393,7 +204,7 @@ function PieSession:get_env()
 
 	if self:is_worker_session() then
 		local commander_dir = self.commander_session:get_dir()
-		local pie_branch = get_git_branch(commander_dir)
+		local pie_branch = Git.get_git_branch(commander_dir)
 		return {
 			PIE_DIR = commander_dir,
 			PIE_BRANCH = pie_branch,
@@ -407,10 +218,8 @@ function PieSession:get_env()
 end
 
 function PieSession:init_session_background()
-	self:ensure_harness_session(function()
-		self:init_harness()
-		self:run_setup_script()
-	end)
+	self:init_harness()
+	self:run_setup_script()
 end
 
 function PieSession:init_harness()
@@ -433,8 +242,8 @@ function PieSession:run_setup_script()
 		local pie_task_branch = env.PIE_TASK_BRANCH
 		local pie_task_dir = env.PIE_TASK_DIR
 
-		git_worktree_remove(commander_dir, pie_task_branch, pie_task_dir)
-		git_worktree_add(commander_dir, pie_task_branch, pie_task_dir)
+		Git.worktree_remove(commander_dir, pie_task_branch, pie_task_dir)
+		Git.worktree_add(commander_dir, pie_task_branch, pie_task_dir)
 	end
 
 	local pie_dir = env.PIE_DIR
